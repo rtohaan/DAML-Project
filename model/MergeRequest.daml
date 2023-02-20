@@ -1,0 +1,76 @@
+module MergeRequest where
+
+data MergeRequest = MergeRequest 
+  with
+    author : Party
+    reviewers : [Party]
+    codeChange : Text
+    status : MergeRequestStatus
+    mergeCommit : Text
+
+data MergeRequestStatus = Opened | Approved | Rejected | Merged
+
+template CreateMR
+    with 
+        author : Party
+        codeChange : Text
+    where 
+        signatory author
+
+        choice SubmitMR : ContractId MergeRequest
+            with
+            reviewers : [Party]
+                controller author
+                do
+                create MergeRequest with
+                    author = author
+                    reviewers = reviewers
+                    codeChange = codeChange
+                    status = Open
+                    mergeCommit = ""
+
+template MRReview
+    with
+        mergeRequest : ContractId MergeRequest
+        reviewer : Party
+    where
+        signatory reviewer
+        observer mergeRequestStatus.author
+
+        -- Another way to approve/reject without checking status
+        -- controller reviewer can
+        --     Accept : ContractId MergeRequest
+        --         do
+        --             create mergeRequest with status = Approved
+        --     Reject :
+        --         do
+        --             create mergeRequest with status = Rejected
+
+        choice ApproveMR : ContractId MergeRequest
+            controller reviewer
+            do
+            mergeRequest <- fetch mergeRequest
+            ensure (mergeRequest.status == 'Opened')
+                create mergeRequest with status = Approved
+        
+        choice RejectMR : ContractId MergeRequest
+            controller reviewer
+            do
+            mergeRequest <- fetch mergeRequest
+            ensure (mergeRequest.status == 'Opened')
+                create mergeRequest with status = Rejected
+        
+template MergeApprovedMR
+    with
+        mergeRequest : ContractId MergeRequest
+        mergeCommit : Text
+    where
+        signatory [ mergeRequest.author ]
+    
+        choice MergeIntoMain : ContractId MergeRequest
+            controller mergeRequest.author
+            do
+            mergeRequest <- fetch mergeRequest
+            ensure (mergeRequest.status == 'Approved')
+                create mergeRequest with status = Merged
+        

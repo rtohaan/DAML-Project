@@ -1,0 +1,43 @@
+module TransferProperty where
+
+template PropertyTransfer
+  with
+    owner : Party
+    propertyAddress : Text 
+    value : Int
+  where 
+    signatory owner
+    
+    choice Transfer : ContractId PropertyTransfer
+      with 
+        newOwner : Party
+      controller owner
+      do 
+        create this with 
+          owner = newOwner
+
+template BuyProperty
+  with
+    buyer : Party
+    seller : Party
+    notary : Party
+    propertyContract : ContractId PropertyTransfer
+  where 
+    signatory buyer, seller
+    observer notary
+  
+    choice BuyProperty
+      with
+        property : ContractId PropertyTransfer
+      controller buyer can
+      do
+        create this with 
+          newOwner = buyer
+
+template CheckProperty
+  with
+    seller : Party
+    newOwner : Party
+    propertyContract : ContractId PropertyTransfer
+  where
+  signatory newOwner, seller
